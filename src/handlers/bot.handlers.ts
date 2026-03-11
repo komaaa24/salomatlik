@@ -254,7 +254,7 @@ export async function handleShowJokes(
 }
 
 /**
- * Keyingi fakt
+ * Keyingi kontent
  */
 export async function handleNext(ctx: Context, index: number) {
     const userId = ctx.from?.id;
@@ -335,7 +335,7 @@ export async function handlePayment(ctx: Context) {
     });
     await paymentRepo.save(payment);
 
-    const botUsername = ctx.me?.username || "faktlar_bot";
+    const botUsername = ctx.me?.username || "soglik_salomatlik_bot";
     const returnUrl = `https://t.me/${botUsername}`;
 
     const paymentLink = generatePaymentLink({
@@ -508,7 +508,7 @@ export async function handleSetLanguage(ctx: Context, language: BotLanguage) {
 }
 
 /**
- * API dan faktlarni sinxronlash
+ * API dan kontentni sinxronlash
  */
 export async function syncJokesFromAPI(languages: BotLanguage[] = ["uz", "en", "ru"]): Promise<void> {
     const jokeRepo = AppDataSource.getRepository(Joke);
@@ -543,12 +543,12 @@ export async function syncJokesFromAPI(languages: BotLanguage[] = ["uz", "en", "
                 page += 1;
             }
 
-            console.log(`✅ Synced ${synced} facts for language=${language}`);
+            console.log(`✅ Synced ${synced} content items for language=${language}`);
         }
 
         console.log("✅ Content synced successfully");
     } catch (error) {
-        console.error("❌ Error syncing facts:", error);
+        console.error("❌ Error syncing content:", error);
         throw error;
     }
 }

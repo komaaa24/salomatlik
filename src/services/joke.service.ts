@@ -57,7 +57,7 @@ function resolveApiBaseUrl(): string {
 }
 
 /**
- * ProgramSoft API dan faktlarni olish (til bo'yicha)
+ * ProgramSoft API dan kontentni olish (til bo'yicha)
  */
 export async function fetchFactsFromAPI(
     language: BotLanguage,
@@ -91,12 +91,13 @@ export async function fetchFactsFromAPI(
             lastPage: json.meta?.last_page
         };
     } catch (error) {
-        console.error(`❌ Error fetching facts from API (${language}, page=${page}):`, error);
+        console.error(`❌ Error fetching content from API (${language}, page=${page}):`, error);
         throw error;
     }
 }
 
 const KNOWN_LABELS = new Set([
+    // Legacy labels
     "tavsif",
     "boshlash usuli",
     "konikmalar",
@@ -112,7 +113,39 @@ const KNOWN_LABELS = new Set([
     "xavflar",
     "afzalliklar",
     "kamchiliklar",
-    "talab"
+    "talab",
+    // Health and wellness labels
+    "foydasi",
+    "zarari",
+    "simptomlar",
+    "belgilar",
+    "oldini olish",
+    "davolash",
+    "ehtiyot choralari",
+    "ehtiyot chorasi",
+    "qarshi korsatma",
+    "qarshi ko'rsatma",
+    "kontraindikatsiya",
+    "qollash",
+    "qo'llash",
+    "doza",
+    "tavsiyalar",
+    "maslahatlar",
+    "benefits",
+    "side effects",
+    "symptoms",
+    "prevention",
+    "treatment",
+    "warnings",
+    "usage",
+    "dosage",
+    "преимущества",
+    "симптомы",
+    "профилактика",
+    "лечение",
+    "предупреждения",
+    "применение",
+    "дозировка"
 ]);
 
 function normalizeLabel(label: string): string {
@@ -153,7 +186,7 @@ function splitIdeaText(raw: string): { title?: string; body: string } {
 }
 
 /**
- * Faktni standart formatga o'tkazish
+ * Kontentni standart formatga o'tkazish
  */
 export function formatJoke(item: JokeItem, language: BotLanguage): {
     externalId: string;

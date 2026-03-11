@@ -270,7 +270,7 @@ app.post("/webhook/pay", async (req, res) => {
  */
 async function main() {
     try {
-        console.log("🚀 Starting Facts Bot...");
+        console.log("🚀 Starting Health & Wellness Bot...");
 
         // Initialize main database
         console.log("📦 Connecting to main database...");
@@ -287,8 +287,8 @@ async function main() {
             console.warn("⚠️ Sherlar database connection failed (will use local payments only):", errorMsg);
         }
 
-        // Sync facts on startup
-        console.log("🔄 Syncing facts from API...");
+        // Sync health content on startup
+        console.log("🔄 Syncing health content from API...");
         await syncJokesFromAPI();
         console.log("✅ Content synced");
 

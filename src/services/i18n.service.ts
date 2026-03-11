@@ -49,20 +49,20 @@ type Messages = {
 };
 
 const UZ_MESSAGES: Messages = {
-    noFacts: "Faktlar topilmadi 😔",
+    noFacts: "Sog'liq bo'yicha ma'lumot topilmadi 😔",
     categoryLabel: "Kategoriya",
-    nextFactButton: "📚 Keyingi fakt",
+    nextFactButton: "📚 Keyingi maslahat",
     premiumButton: "🚀 Premium kirish",
     languageButton: "🌐 Til",
     payButton: "💳 To'lash",
     checkPaymentButton: "✅ To'lovni tekshirish",
-    openFactsButton: "📚 Faktlarni ochish",
+    openFactsButton: "📚 Maslahatlarni ochish",
     sessionExpired: "Sessiya tugagan. /start ni bosing.",
-    revokedLimitAlert: "❌ Obuna faol emas. Faqat 5 ta bepul fakt mavjud.",
+    revokedLimitAlert: "❌ Obuna faol emas. Faqat 5 ta bepul maslahat mavjud.",
     revokedLimitText:
         `⚠️ <b>Premium faol emas</b>\n\n` +
-        `Siz faqat 5 ta bepul faktni ko'rishingiz mumkin.\n\n` +
-        `Cheksiz faktlar uchun premiumni faollashtiring.`,
+        `Siz faqat 5 ta bepul maslahatni ko'rishingiz mumkin.\n\n` +
+        `Cheksiz sog'liq kontenti uchun premiumni faollashtiring.`,
     alreadyPremium: "Siz allaqachon premium a'zosisiz ✅",
     paymentNotFound: "To'lov topilmadi ❌",
     paymentChecking: "🔍 To'lov tekshirilmoqda...",
@@ -79,47 +79,47 @@ const UZ_MESSAGES: Messages = {
         `✅ <b>To'lov tasdiqlandi!</b>\n\n` +
         `💰 Summa: ${amount.toLocaleString()} so'm\n` +
         `🎉 Endi siz premium a'zosisiz.\n\n` +
-        `Faktlarni o'qish uchun /start ni bosing.`,
+        `Maslahatlarni ko'rish uchun /start ni bosing.`,
     paymentRevokedText:
         `⚠️ <b>Obunangiz bekor qilingan</b>\n\n` +
         `Premium qayta ochilishi uchun yangidan to'lov qiling.\n\n` +
         `/start`,
     paymentScreen: (amount: number) =>
-        `🚀 <b>PREMIUM FAKTLAR</b>\n\n` +
+        `🚀 <b>PREMIUM SALOMATLIK</b>\n\n` +
         `💰 Narx: <b>${amount.toLocaleString()} so'm</b>\n` +
-        `♾️ Bir martalik to'lov, cheksiz kirish.\n\n` +
+        `💎 Bir marta to'lov qiling — Premium Salomatlik sizniki: cheksiz va muddatsiz foydalaning.\n\n` +
         `Premium bilan:\n` +
-        `• O'zbek, ingliz va rus tilidagi barcha faktlar\n` +
-        `• Har safar random faktlar oqimi\n` +
+        `• O'zbek, ingliz va rus tilidagi sog'liq kontenti\n` +
+        `• Har safar random salomatlik maslahatlari oqimi\n` +
         `• Hech qanday limitlarsiz foydalanish\n\n` +
         `To'lovdan keyin "To'lovni tekshirish" ni bosing.`,
     paymentConfirmedNotification: (amount: number) =>
         `✅ <b>To'lovingiz tasdiqlandi!</b>\n\n` +
         `💰 Summa: ${amount.toLocaleString()} so'm\n` +
         `🎉 Endi botdan cheksiz foydalanishingiz mumkin.\n\n` +
-        `Faktlarni davom ettirish uchun /start bosing.`,
+        `Maslahatlarni davom ettirish uchun /start bosing.`,
     languageMenuTitle: `🌐 <b>Tilni tanlang</b>\n\nBot o'zbek, ingliz va rus tillarida ishlaydi.`,
     languageChangedToast: "Til yangilandi ✅",
-    factCardTitle: (index: number, total: number) => `📚 <b>FAKT #${index}</b> • ${total} ta`,
-    syncStarted: "🔄 Faktlar sinxronlashtirilmoqda...",
-    syncCompleted: "✅ Faktlar sinxronlash tugadi",
-    syncFailed: "❌ Faktlarni sinxronlashda xatolik"
+    factCardTitle: (index: number, total: number) => `📚 <b>MASLAHAT #${index}</b> • ${total} ta`,
+    syncStarted: "🔄 Salomatlik maslahatlari sinxronlashtirilmoqda...",
+    syncCompleted: "✅ Salomatlik kontenti sinxronlash tugadi",
+    syncFailed: "❌ Salomatlik kontentini sinxronlashda xatolik"
 };
 
 const EN_MESSAGES: Messages = {
-    noFacts: "No facts found 😔",
+    noFacts: "No health tips found 😔",
     categoryLabel: "Category",
-    nextFactButton: "📚 Next fact",
+    nextFactButton: "📚 Next tip",
     premiumButton: "🚀 Premium access",
     languageButton: "🌐 Language",
     payButton: "💳 Pay now",
     checkPaymentButton: "✅ Check payment",
-    openFactsButton: "📚 Open facts",
+    openFactsButton: "📚 Open health tips",
     sessionExpired: "Session expired. Please press /start.",
-    revokedLimitAlert: "❌ Subscription is inactive. Only 5 free facts are available.",
+    revokedLimitAlert: "❌ Subscription is inactive. Only 5 free tips are available.",
     revokedLimitText:
         `⚠️ <b>Premium is inactive</b>\n\n` +
-        `You can view only 5 free facts.\n\n` +
+        `You can view only 5 free health tips.\n\n` +
         `Activate premium for unlimited access.`,
     alreadyPremium: "You already have premium ✅",
     paymentNotFound: "Payment not found ❌",
@@ -137,18 +137,18 @@ const EN_MESSAGES: Messages = {
         `✅ <b>Payment confirmed!</b>\n\n` +
         `💰 Amount: ${amount.toLocaleString()} UZS\n` +
         `🎉 Premium access is now active.\n\n` +
-        `Press /start to continue reading facts.`,
+        `Press /start to continue reading health tips.`,
     paymentRevokedText:
         `⚠️ <b>Your subscription was revoked</b>\n\n` +
         `Please pay again to reactivate premium.\n\n` +
         `/start`,
     paymentScreen: (amount: number) =>
-        `🚀 <b>PREMIUM FACTS</b>\n\n` +
+        `🚀 <b>PREMIUM HEALTH HUB</b>\n\n` +
         `💰 Price: <b>${amount.toLocaleString()} UZS</b>\n` +
-        `♾️ One-time payment, unlimited access.\n\n` +
+        `💎 Pay once — Premium Health is yours: use it unlimited and forever.\n\n` +
         `With premium you get:\n` +
-        `• Full Uzbek + English + Russian fact catalog\n` +
-        `• Random fact feed every session\n` +
+        `• Full Uzbek + English + Russian health catalog\n` +
+        `• Random wellness tips every session\n` +
         `• No viewing limits\n\n` +
         `After payment, tap "Check payment".`,
     paymentConfirmedNotification: (amount: number) =>
@@ -158,26 +158,26 @@ const EN_MESSAGES: Messages = {
         `Press /start to continue.`,
     languageMenuTitle: `🌐 <b>Choose language</b>\n\nThe bot supports Uzbek, English, and Russian.`,
     languageChangedToast: "Language updated ✅",
-    factCardTitle: (index: number, total: number) => `📚 <b>FACT #${index}</b> • ${total} total`,
-    syncStarted: "🔄 Syncing facts...",
-    syncCompleted: "✅ Facts synced successfully",
-    syncFailed: "❌ Failed to sync facts"
+    factCardTitle: (index: number, total: number) => `📚 <b>HEALTH TIP #${index}</b> • ${total} total`,
+    syncStarted: "🔄 Syncing health tips...",
+    syncCompleted: "✅ Health content synced successfully",
+    syncFailed: "❌ Failed to sync health content"
 };
 
 const RU_MESSAGES: Messages = {
-    noFacts: "Факты не найдены 😔",
+    noFacts: "Советы по здоровью не найдены 😔",
     categoryLabel: "Категория",
-    nextFactButton: "📚 Следующий факт",
+    nextFactButton: "📚 Следующий совет",
     premiumButton: "🚀 Премиум доступ",
     languageButton: "🌐 Язык",
     payButton: "💳 Оплатить",
     checkPaymentButton: "✅ Проверить оплату",
-    openFactsButton: "📚 Открыть факты",
+    openFactsButton: "📚 Открыть советы",
     sessionExpired: "Сессия истекла. Нажмите /start.",
-    revokedLimitAlert: "❌ Подписка не активна. Доступно только 5 бесплатных фактов.",
+    revokedLimitAlert: "❌ Подписка не активна. Доступно только 5 бесплатных советов.",
     revokedLimitText:
         `⚠️ <b>Премиум не активен</b>\n\n` +
-        `Вы можете смотреть только 5 бесплатных фактов.\n\n` +
+        `Вы можете смотреть только 5 бесплатных советов.\n\n` +
         `Активируйте премиум для безлимитного доступа.`,
     alreadyPremium: "У вас уже есть премиум ✅",
     paymentNotFound: "Платеж не найден ❌",
@@ -201,12 +201,12 @@ const RU_MESSAGES: Messages = {
         `Оплатите заново, чтобы снова активировать премиум.\n\n` +
         `/start`,
     paymentScreen: (amount: number) =>
-        `🚀 <b>ПРЕМИУМ ФАКТЫ</b>\n\n` +
+        `🚀 <b>ПРЕМИУМ ЗДОРОВЬЕ</b>\n\n` +
         `💰 Цена: <b>${amount.toLocaleString()} UZS</b>\n` +
-        `♾️ Разовая оплата, безлимитный доступ.\n\n` +
+        `💎 Оплатите один раз — Премиум Здоровье ваше: пользуйтесь безлимитно и без срока.\n\n` +
         `С премиумом вы получаете:\n` +
-        `• Факты на узбекском, английском и русском\n` +
-        `• Случайную ленту фактов при каждом запуске\n` +
+        `• Контент о здоровье на узбекском, английском и русском\n` +
+        `• Случайную ленту советов при каждом запуске\n` +
         `• Без ограничений по просмотрам\n\n` +
         `После оплаты нажмите "Проверить оплату".`,
     paymentConfirmedNotification: (amount: number) =>
@@ -216,10 +216,10 @@ const RU_MESSAGES: Messages = {
         `Нажмите /start, чтобы продолжить.`,
     languageMenuTitle: `🌐 <b>Выберите язык</b>\n\nБот поддерживает узбекский, английский и русский.`,
     languageChangedToast: "Язык обновлен ✅",
-    factCardTitle: (index: number, total: number) => `📚 <b>ФАКТ #${index}</b> • всего ${total}`,
-    syncStarted: "🔄 Синхронизация фактов...",
-    syncCompleted: "✅ Факты успешно синхронизированы",
-    syncFailed: "❌ Ошибка синхронизации фактов"
+    factCardTitle: (index: number, total: number) => `📚 <b>СОВЕТ #${index}</b> • всего ${total}`,
+    syncStarted: "🔄 Синхронизация советов по здоровью...",
+    syncCompleted: "✅ Контент о здоровье успешно синхронизирован",
+    syncFailed: "❌ Ошибка синхронизации контента о здоровье"
 };
 
 export function getMessages(language: BotLanguage): Messages {

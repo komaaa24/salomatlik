@@ -1,17 +1,17 @@
-# 📚 Faktlar Telegram Bot
+# 🩺 Sog'liq va Salomatlik Telegram Bot
 
-Professional Telegram bot with Click payment integration for delivering curated facts in Uzbek, English, and Russian.
+Professional Telegram bot with Click payment integration for delivering curated health and wellness content in Uzbek, English, and Russian.
 
 ## ✨ Features
 
-- 📚 O'zbek, ingliz va rus tilida faktlar
-- 🎲 Tasodifiy fakt tanlash
+- 📚 O'zbek, ingliz va rus tilida sog'liq kontenti
+- 🎲 Tasodifiy salomatlik maslahati
 - 💳 Click.uz to'lov integratsiyasi
 - 👤 Foydalanuvchilar boshqaruvi
 - 📊 Ko'rishlar statistikasi
 - 🔄 API dan avtomatik sinxronlash
 - 🌐 Til almashtirish (`/lang` yoki inline)
-- 🎯 5 ta bepul fakt
+- 🎯 5 ta bepul maslahat
 - ✅ Bir martalik to'lov - cheksiz kirish
 
 ## 🛠 Tech Stack
@@ -35,7 +35,7 @@ Professional Telegram bot with Click payment integration for delivering curated 
 1. **Clone repository:**
    ```bash
    git clone <your-repo-url>
-   cd pul_topish
+   cd sog'lu
    ```
 
 2. **Install dependencies:**
@@ -67,11 +67,11 @@ Professional Telegram bot with Click payment integration for delivering curated 
    PORT=3000
    ADMIN_IDS=your_telegram_id
 
-   # ProgramSoft API (Facts)
+   # ProgramSoft API (Health & Wellness)
    PROGRAMSOFT_API_URL=https://www.programsoft.uz/api
-   PROGRAMSOFT_UZ_SERVICE_ID=8
-   PROGRAMSOFT_EN_SERVICE_ID=9
-   PROGRAMSOFT_RU_SERVICE_ID=145
+   PROGRAMSOFT_UZ_SERVICE_ID=32
+   PROGRAMSOFT_EN_SERVICE_ID=108
+   PROGRAMSOFT_RU_SERVICE_ID=179
    PROGRAMSOFT_UZ_PAGES=6
    PROGRAMSOFT_EN_PAGES=15
    PROGRAMSOFT_RU_PAGES=10
@@ -95,7 +95,7 @@ npm run build
 npm run start:prod
 ```
 
-### Sync facts manually:
+### Sync health content manually:
 Use `/sync` command in bot (admin only)
 
 ## 🔧 Project Structure
@@ -106,11 +106,11 @@ src/
 │   └── data-source.ts       # TypeORM configuration
 ├── entities/
 │   ├── User.ts              # User entity
-│   ├── Joke.ts              # Facts content (stored in jokes table)
+│   ├── Joke.ts              # Health content (stored in jokes table)
 │   └── Payment.ts           # Payment entity
 ├── services/
 │   ├── user.service.ts      # User business logic
-│   ├── joke.service.ts      # ProgramSoft API integration (facts)
+│   ├── joke.service.ts      # ProgramSoft API integration (health content)
 │   └── click.service.ts     # Click payment service
 ├── handlers/
 │   ├── bot.handlers.ts      # Bot command handlers
@@ -122,11 +122,11 @@ src/
 
 - `/start` - Start bot and show content
 - `/lang` - Change language (Uzbek / English / Russian)
-- `/sync` - Sync facts from API (admin only)
+- `/sync` - Sync health content from API (admin only)
 
 ## 💰 Payment Flow
 
-1. User views 5 free facts
+1. User views 5 free health tips
 2. Bot offers payment option
 3. Click payment link generated
 4. User completes payment
@@ -157,7 +157,7 @@ https://yourdomain.com/webhook/pay
 - hasPaid (boolean)
 - viewedJokes (counter)
 
-### Facts (jokes table)
+### Health Content (jokes table)
 - externalId (from API)
 - language (uz/en/ru)
 - category
@@ -182,9 +182,9 @@ https://yourdomain.com/webhook/pay
 | DB_PASS | Database password | ✅ |
 | DB_NAME | Database name | ✅ |
 | PROGRAMSOFT_API_URL | ProgramSoft API base | ✅ |
-| PROGRAMSOFT_UZ_SERVICE_ID | Uzbek facts service ID (`8`) | ✅ |
-| PROGRAMSOFT_EN_SERVICE_ID | English facts service ID (`9`) | ✅ |
-| PROGRAMSOFT_RU_SERVICE_ID | Russian facts service ID (`145`) | ✅ |
+| PROGRAMSOFT_UZ_SERVICE_ID | Uzbek health service ID (`32`) | ✅ |
+| PROGRAMSOFT_EN_SERVICE_ID | English health service ID (`108`) | ✅ |
+| PROGRAMSOFT_RU_SERVICE_ID | Russian health service ID (`179`) | ✅ |
 | PROGRAMSOFT_UZ_PAGES | Uzbek pages to sync | ❌ |
 | PROGRAMSOFT_EN_PAGES | English pages to sync | ❌ |
 | PROGRAMSOFT_RU_PAGES | Russian pages to sync | ❌ |
