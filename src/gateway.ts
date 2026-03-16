@@ -11,6 +11,7 @@ import { Payment, PaymentStatus } from "./entities/Payment.js";
 import { User } from "./entities/User.js";
 import { UserService } from "./services/user.service.js";
 import { generatePaymentLink, generateTransactionParam, getFixedPaymentAmount } from "./services/click.service.js";
+import { LEGACY_BOT_USERNAME, normalizeBotUsername } from "./services/bot-context.service.js";
 
 function required(name: string): string {
     const value = (process.env[name] || "").trim();
@@ -51,7 +52,7 @@ async function main() {
 
             const rawUserId = String(req.query.user_id || "").trim();
             const rawAmount = String(req.query.amount || "").trim();
-            const botKey = String(req.query.bot_key || "").trim();
+            const botUsername = normalizeBotUsername(String(req.query.bot_key || "")) || LEGACY_BOT_USERNAME;
             const format = String(req.query.format || "json").trim().toLowerCase();
 
             const telegramId = Number(rawUserId);
@@ -61,11 +62,12 @@ async function main() {
             const amount = getFixedPaymentAmount(); // 1111 so'm
 
             const userRepo = AppDataSource.getRepository(User);
-            let user = await userRepo.findOne({ where: { telegramId } });
+            let user = await userRepo.findOne({ where: { telegramId, botUsername } });
 
             if (!user) {
                 user = userRepo.create({
                     telegramId,
+                    botUsername,
                     username: String(req.query.username || "") || undefined,
                     firstName: String(req.query.first_name || "") || undefined,
                     lastName: String(req.query.last_name || "") || undefined
@@ -79,19 +81,20 @@ async function main() {
             const payment = paymentRepo.create({
                 transactionParam,
                 userId: user.id,
+                botUsername,
                 amount,
                 status: PaymentStatus.PENDING,
                 metadata: {
                     telegramId,
-                    botKey,
+                    botUsername,
                     source: "gateway"
                 }
             });
             await paymentRepo.save(payment);
 
             // Return URL - to'lovdan keyin botga qaytish
-            const returnUrl = botKey
-                ? `https://t.me/${botKey.replace('_bot', '')}_bot`
+            const returnUrl = botUsername !== LEGACY_BOT_USERNAME
+                ? `https://t.me/${botUsername.replace('_bot', '')}_bot`
                 : `https://t.me/biznes_goyalar_bot`;
 
             const paymentLink = generatePaymentLink({
@@ -169,6 +172,7 @@ async function main() {
                     await paymentRepo.save(payment);
 
                     const telegramId = payment.metadata?.telegramId || user_id;
+                    const botUsername = normalizeBotUsername(payment.botUsername) || normalizeBotUsername(payment.metadata?.botUsername) || LEGACY_BOT_USERNAME;
                     if (telegramId) {
                         // Update user: hasPaid=true, clear revokedAt
                         const userRepo = AppDataSource.getRepository(User);
@@ -177,14 +181,16 @@ async function main() {
                             .update(User)
                             .set({ hasPaid: true, revokedAt: () => "NULL" })
                             .where("telegramId = :telegramId", { telegramId })
+                            .andWhere("botUsername = :botUsername", { botUsername })
                             .execute();
-                        console.log(`✅ [GATEWAY] User ${telegramId} marked as paid, revokedAt cleared`);
+                        console.log(`✅ [GATEWAY] User ${telegramId} marked as paid in @${botUsername}, revokedAt cleared`);
 
                         // Forward notification request to main bot
                         try {
                             await axios.post('http://localhost:9988/internal/send-payment-notification', {
                                 telegramId,
-                                amount: payment.amount
+                                amount: payment.amount,
+                                botUsername
                             }, { timeout: 5000 });
                             console.log(`📤 [GATEWAY] Notification request forwarded to main bot for user ${telegramId}`);
                         } catch (notifError) {
@@ -249,6 +255,7 @@ async function main() {
                     await paymentRepo.save(payment);
 
                     const telegramId = payment.metadata?.telegramId || user_id;
+                    const botUsername = normalizeBotUsername(payment.botUsername) || normalizeBotUsername(payment.metadata?.botUsername) || LEGACY_BOT_USERNAME;
                     if (telegramId) {
                         // Update user: hasPaid=true, clear revokedAt
                         const userRepo = AppDataSource.getRepository(User);
@@ -257,13 +264,15 @@ async function main() {
                             .update(User)
                             .set({ hasPaid: true, revokedAt: () => "NULL" })
                             .where("telegramId = :telegramId", { telegramId })
+                            .andWhere("botUsername = :botUsername", { botUsername })
                             .execute();
-                        console.log(`✅ [GATEWAY] User ${telegramId} marked as paid, revokedAt cleared`);
+                        console.log(`✅ [GATEWAY] User ${telegramId} marked as paid in @${botUsername}, revokedAt cleared`);
 
                         try {
                             await axios.post('http://localhost:9988/internal/send-payment-notification', {
                                 telegramId,
-                                amount: payment.amount
+                                amount: payment.amount,
+                                botUsername
                             }, { timeout: 5000 });
                             console.log(`📤 [GATEWAY] Notification request forwarded to main bot for user ${telegramId}`);
                         } catch (notifError) {

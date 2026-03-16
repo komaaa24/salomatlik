@@ -5,6 +5,7 @@ import { Payment, PaymentStatus } from "../entities/Payment.js";
 import { User } from "../entities/User.js";
 import { UserService } from "../services/user.service.js";
 import { getMessages, normalizeLanguage } from "../services/i18n.service.js";
+import { getBotUsernameFromContext } from "../services/bot-context.service.js";
 
 // Admin ID'lar ro'yxati
 const ADMIN_IDS = [7789445876, 1083408];
@@ -468,13 +469,14 @@ export async function handleApproveBytelegramId(ctx: Context, telegramId: number
         await ctx.reply("⛔️ Sizda ruxsat yo'q!");
         return;
     }
+    const botUsername = getBotUsernameFromContext(ctx);
 
     const userRepo = AppDataSource.getRepository(User);
     const paymentRepo = AppDataSource.getRepository(Payment);
 
     // Foydalanuvchini topish
     const user = await userRepo.findOne({
-        where: { telegramId: telegramId }
+        where: { telegramId, botUsername }
     });
 
     if (!user) {
@@ -501,6 +503,7 @@ export async function handleApproveBytelegramId(ctx: Context, telegramId: number
     const pendingPayment = await paymentRepo.findOne({
         where: {
             userId: user.id,
+            botUsername,
             status: PaymentStatus.PENDING
         }
     });
@@ -517,7 +520,7 @@ export async function handleApproveBytelegramId(ctx: Context, telegramId: number
     }
 
     // Foydalanuvchini to'lagan deb belgilash
-    await userService.markAsPaid(telegramId);
+    await userService.markAsPaid(telegramId, botUsername);
 
     // Foydalanuvchiga xabar va tugma yuborish
     try {
@@ -557,9 +560,10 @@ export async function handleRevokeByTelegramId(ctx: Context, telegramId: number)
     if (!isSuperAdmin(userId)) {
         return ctx.reply("⛔️ Bu buyruq faqat super admin uchun!");
     }
+    const botUsername = getBotUsernameFromContext(ctx);
 
     const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOne({ where: { telegramId } });
+    const user = await userRepo.findOne({ where: { telegramId, botUsername } });
 
     if (!user) {
         return ctx.reply(

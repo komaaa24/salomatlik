@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from "typeorm";
 import { User } from "./User.js";
+import { LEGACY_BOT_USERNAME } from "../services/bot-context.service.js";
 
 export enum PaymentStatus {
     PENDING = "pending",
@@ -22,6 +23,9 @@ export class Payment {
 
     @Column({ type: "int" })
     userId!: number;
+
+    @Column({ type: "varchar", default: LEGACY_BOT_USERNAME })
+    botUsername!: string;
 
     @Column({ type: "decimal", precision: 10, scale: 2 })
     amount!: number;

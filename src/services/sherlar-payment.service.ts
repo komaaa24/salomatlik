@@ -75,6 +75,62 @@ export class SherlarPaymentService {
     }
 
     /**
+     * Aniq transaction orqali to'lov tasdiqlanganmi tekshirish.
+     * Bu usul user_id bo'yicha global premium berib yubormaslik uchun ishlatiladi.
+     */
+    async hasValidPaymentByTransactionParam(transactionParam: string): Promise<{ hasPaid: boolean; paymentDate?: Date }> {
+        try {
+            if (!SherlarDataSource.isInitialized) {
+                await SherlarDataSource.initialize();
+                console.log("✅ Sherlar database connected");
+            }
+
+            const query = `
+                SELECT
+                    id,
+                    user_id,
+                    amount,
+                    status,
+                    created_at,
+                    click_payment_id,
+                    click_merchant_trans_id
+                FROM payments
+                WHERE click_merchant_trans_id = $1
+                  AND amount = 1111
+                  AND UPPER(status) = 'PAID'
+                ORDER BY created_at DESC
+                LIMIT 1
+            `;
+
+            const result = await SherlarDataSource.query(query, [transactionParam]);
+
+            if (result && result.length > 0) {
+                const payment = result[0];
+                console.log("✅ Payment found in sherlar DB by transaction:", {
+                    payment_id: payment.id,
+                    user_id: payment.user_id,
+                    transaction: payment.click_merchant_trans_id,
+                    created_at: payment.created_at
+                });
+
+                return {
+                    hasPaid: true,
+                    paymentDate: new Date(payment.created_at)
+                };
+            }
+
+            console.log(`ℹ️ No payment found for transaction: ${transactionParam}`);
+            return { hasPaid: false };
+        } catch (error) {
+            console.error("❌ Error checking sherlar payment by transaction:", error);
+            if (error instanceof Error) {
+                console.error("Error details:", error.message);
+            }
+            return { hasPaid: false };
+        }
+    }
+
+    /**
      * Telegram ID orqali to'lov ma'lumotlarini olish
      * @param telegramId - Foydalanuvchi Telegram ID (user_id)
      * @returns Payment ma'lumotlari yoki null

@@ -6,6 +6,7 @@ import express from "express";
 import bodyParser from "body-parser";
 import { Bot } from "grammy";
 import { AppDataSource } from "./database/data-source.js";
+import { Payment } from "./entities/Payment.js";
 import {
     handleStart,
     handleShowJokes,
@@ -19,6 +20,7 @@ import {
 import { UserService } from "./services/user.service.js";
 import { getMessages } from "./services/i18n.service.js";
 import { handlePaymentWebhook } from "./handlers/webhook.handlers.js";
+import { getBotUsernameFromContext, normalizeBotUsername } from "./services/bot-context.service.js";
 
 function required(name: string): string {
     const v = (process.env[name] || "").trim();
@@ -62,7 +64,8 @@ async function wireBot(bot: Bot) {
             return ctx.reply("⛔️ Bu buyruqdan foydalanish uchun ruxsatingiz yo'q.");
         }
 
-        const language = await userService.getPreferredLanguage(userId);
+        const botUsername = getBotUsernameFromContext(ctx);
+        const language = await userService.getPreferredLanguage(userId, botUsername);
         const messages = getMessages(language);
 
         await ctx.reply(messages.syncStarted);
@@ -101,7 +104,8 @@ async function wireBot(bot: Bot) {
                 const paymentId = parseInt(data.replace("check_payment:", ""), 10);
                 await handleCheckPayment(ctx, paymentId);
             } else if (data === "cancel_payment") {
-                const language = await userService.getPreferredLanguage(ctx.from?.id || 0);
+                const botUsername = getBotUsernameFromContext(ctx);
+                const language = await userService.getPreferredLanguage(ctx.from?.id || 0, botUsername);
                 const messages = getMessages(language);
                 await ctx.editMessageText(messages.paymentCancelled);
                 await ctx.answerCallbackQuery();
@@ -129,11 +133,17 @@ async function main() {
 
     const botsEnv = parseBotsEnv();
     const botsByKey: Record<string, Bot> = {};
+    const botsByUsername: Record<string, Bot> = {};
 
     for (const { key, token } of botsEnv) {
         const bot = new Bot(token);
+        await bot.init();
         await wireBot(bot);
         botsByKey[key] = bot;
+        const botUsername = normalizeBotUsername(bot.botInfo?.username);
+        if (botUsername) {
+            botsByUsername[botUsername] = bot;
+        }
     }
 
     const defaultBotKey = (process.env.DEFAULT_BOT_KEY || "").trim() || botsEnv[0]?.key;
@@ -150,7 +160,8 @@ async function main() {
     // Payment webhook endpoints (single port for all bots)
     app.post("/webhook/pay", async (req, res) => {
         try {
-            await handlePaymentWebhook(req, res, defaultBot);
+            const webhookBot = await resolveWebhookBot(String(req.body?.tx || ""), botsByUsername, defaultBot);
+            await handlePaymentWebhook(req, res, webhookBot);
         } catch (error) {
             console.error("Webhook error:", error);
             return res.status(500).json({ error: "Internal server error" });
@@ -159,7 +170,8 @@ async function main() {
 
     app.post("/api/pay", async (req, res) => {
         try {
-            await handlePaymentWebhook(req, res, defaultBot);
+            const webhookBot = await resolveWebhookBot(String(req.body?.tx || ""), botsByUsername, defaultBot);
+            await handlePaymentWebhook(req, res, webhookBot);
         } catch (error) {
             console.error("Webhook error:", error);
             return res.status(500).json({ error: "Internal server error" });
@@ -179,6 +191,24 @@ async function main() {
         console.log("🔄 Background sync started...");
         void syncJokesFromAPI();
     }
+}
+
+async function resolveWebhookBot(
+    transactionParam: string,
+    botsByUsername: Record<string, Bot>,
+    defaultBot: Bot
+): Promise<Bot> {
+    if (!transactionParam) {
+        return defaultBot;
+    }
+
+    const paymentRepo = AppDataSource.getRepository(Payment);
+    const payment = await paymentRepo.findOne({
+        where: { transactionParam }
+    });
+
+    const botUsername = normalizeBotUsername(payment?.botUsername) || normalizeBotUsername(payment?.metadata?.botUsername);
+    return (botUsername && botsByUsername[botUsername]) || defaultBot;
 }
 
 main().catch((err) => {

@@ -1,13 +1,18 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, Index } from "typeorm";
 import { Payment } from "./Payment.js";
+import { LEGACY_BOT_USERNAME } from "../services/bot-context.service.js";
 
 @Entity("users")
+@Index(["telegramId", "botUsername"], { unique: true })
 export class User {
     @PrimaryGeneratedColumn()
     id!: number;
 
-    @Column({ type: "bigint", unique: true })
+    @Column({ type: "bigint" })
     telegramId!: number;
+
+    @Column({ type: "varchar", default: LEGACY_BOT_USERNAME })
+    botUsername!: string;
 
     @Column({ type: "varchar", nullable: true })
     username?: string;
@@ -29,7 +34,7 @@ export class User {
 
     // Admin tomonidan revoke qilingan vaqt (agar revoke qilingan bo'lsa)
     @Column({ type: "timestamp", nullable: true })
-    revokedAt?: Date;
+    revokedAt?: Date | null;
 
     @OneToMany(() => Payment, payment => payment.user)
     payments!: Payment[];

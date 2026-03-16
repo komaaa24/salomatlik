@@ -29,6 +29,7 @@ import {
 } from "./handlers/admin.handlers.js";
 import { UserService } from "./services/user.service.js";
 import { getMessages, normalizeLanguage } from "./services/i18n.service.js";
+import { getBotUsernameFromContext, normalizeBotUsername } from "./services/bot-context.service.js";
 
 // Environment variables validation
 const requiredEnvVars = [
@@ -130,7 +131,8 @@ bot.command("sync", async (ctx) => {
         return ctx.reply("⛔️ Bu buyruqdan foydalanish uchun ruxsatingiz yo'q.");
     }
 
-    const language = await userService.getPreferredLanguage(userId);
+    const botUsername = getBotUsernameFromContext(ctx);
+    const language = await userService.getPreferredLanguage(userId, botUsername);
     const messages = getMessages(language);
 
     await ctx.reply(messages.syncStarted);
@@ -176,7 +178,8 @@ bot.on("callback_query:data", async (ctx) => {
             const paymentId = parseInt(data.replace("check_payment:", ""));
             await handleCheckPayment(ctx, paymentId);
         } else if (data === "cancel_payment") {
-            const language = await userService.getPreferredLanguage(ctx.from?.id || 0);
+            const botUsername = getBotUsernameFromContext(ctx);
+            const language = await userService.getPreferredLanguage(ctx.from?.id || 0, botUsername);
             const messages = getMessages(language);
             await ctx.editMessageText(
                 messages.paymentCancelled
@@ -218,7 +221,7 @@ app.get("/health", (req, res) => {
 // Internal endpoint for payment notifications (from gateway)
 app.post("/internal/send-payment-notification", async (req, res) => {
     try {
-        const { telegramId, amount } = req.body;
+        const { telegramId, amount, botUsername: rawBotUsername } = req.body;
 
         if (!telegramId) {
             return res.status(400).json({ error: "telegramId required" });
@@ -231,7 +234,8 @@ app.post("/internal/send-payment-notification", async (req, res) => {
         const keyboard = new InlineKeyboard()
             .url("🔙 Botga qaytish", `https://t.me/${bot.botInfo.username}`);
 
-        const preferredLanguage = await userService.getPreferredLanguage(Number(telegramId));
+        const botUsername = normalizeBotUsername(rawBotUsername) || normalizeBotUsername(bot.botInfo?.username) || "default";
+        const preferredLanguage = await userService.getPreferredLanguage(Number(telegramId), botUsername);
         const messages = getMessages(normalizeLanguage(preferredLanguage));
         const paymentAmount = Number(amount) || 1111;
 

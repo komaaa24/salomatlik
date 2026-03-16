@@ -12,6 +12,8 @@ import axios from "axios";
 import { SherlarPaymentService } from "../services/sherlar-payment.service.js";
 import { BotLanguage } from "../types/language.js";
 import { detectLanguageFromTelegram, getMessages, normalizeLanguage } from "../services/i18n.service.js";
+import { buildScopedSessionKey, getBotUsernameFromContext } from "../services/bot-context.service.js";
+import { verifyClickPaymentByMTI } from "../services/click-verify.service.js";
 
 const userService = new UserService();
 const sherlarPaymentService = new SherlarPaymentService();
@@ -22,7 +24,7 @@ interface UserSession {
     language: BotLanguage;
 }
 
-const sessions = new Map<number, UserSession>();
+const sessions = new Map<string, UserSession>();
 
 function escapeHtml(value: string): string {
     return value
@@ -46,9 +48,10 @@ async function answerCallbackSafe(
 }
 
 async function resolveUserLanguage(ctx: Context, userId: number): Promise<BotLanguage> {
+    const botUsername = getBotUsernameFromContext(ctx);
     const fromTelegram = detectLanguageFromTelegram(ctx.from?.language_code);
 
-    const user = await userService.findOrCreate(userId, {
+    const user = await userService.findOrCreate(userId, botUsername, {
         username: ctx.from?.username,
         firstName: ctx.from?.first_name,
         lastName: ctx.from?.last_name,
@@ -59,7 +62,8 @@ async function resolveUserLanguage(ctx: Context, userId: number): Promise<BotLan
 }
 
 async function showJoke(ctx: Context, userId: number, index: number, answerCallback = false) {
-    const session = sessions.get(userId);
+    const botUsername = getBotUsernameFromContext(ctx);
+    const session = sessions.get(buildScopedSessionKey(botUsername, userId));
     if (!session) return;
 
     if (index < 0 || index >= session.jokes.length) {
@@ -70,10 +74,10 @@ async function showJoke(ctx: Context, userId: number, index: number, answerCallb
 
     const joke = session.jokes[index];
     const total = session.jokes.length;
-    const hasPaid = await userService.hasPaid(userId);
+    const hasPaid = await userService.hasPaid(userId, botUsername);
     const messages = getMessages(session.language);
 
-    await userService.incrementViewedJokes(userId);
+    await userService.incrementViewedJokes(userId, botUsername);
 
     const jokeRepo = AppDataSource.getRepository(Joke);
     joke.views += 1;
@@ -130,10 +134,11 @@ async function showJoke(ctx: Context, userId: number, index: number, answerCallb
 export async function handleStart(ctx: Context) {
     const userId = ctx.from?.id;
     if (!userId) return;
+    const botUsername = getBotUsernameFromContext(ctx);
 
     const language = await resolveUserLanguage(ctx, userId);
 
-    const user = await userService.findOrCreate(userId, {
+    const user = await userService.findOrCreate(userId, botUsername, {
         username: ctx.from?.username,
         firstName: ctx.from?.first_name,
         lastName: ctx.from?.last_name,
@@ -143,29 +148,35 @@ export async function handleStart(ctx: Context) {
     let hasPaid = user.hasPaid;
 
     if (!hasPaid) {
-        console.log(`🔍 [START] Checking sherlar database for user: ${userId}`);
+        console.log(`🔍 [START] Reconciling scoped payments for user ${userId} in @${botUsername}`);
         try {
-            const paymentResult = await sherlarPaymentService.hasValidPayment(userId);
+            const paymentRepo = AppDataSource.getRepository(Payment);
+            const latestPaidPayment = await paymentRepo.findOne({
+                where: {
+                    userId: user.id,
+                    botUsername,
+                    status: PaymentStatus.PAID
+                },
+                order: {
+                    updatedAt: "DESC"
+                }
+            });
 
-            if (paymentResult.hasPaid) {
-                if (user.revokedAt && paymentResult.paymentDate) {
-                    if (paymentResult.paymentDate < user.revokedAt) {
-                        console.log("⚠️ [START] Payment found but user was revoked. Skipping.");
-                    } else {
-                        console.log(`✅ [START] New payment after revoke detected for user: ${userId}`);
-                        await userService.update(userId, { hasPaid: true, revokedAt: undefined });
-                        hasPaid = true;
-                    }
+            if (latestPaidPayment) {
+                const paymentActivatedAt = latestPaidPayment.updatedAt || latestPaidPayment.createdAt;
+
+                if (user.revokedAt && paymentActivatedAt <= user.revokedAt) {
+                    console.log("⚠️ [START] Scoped payment exists but was revoked later. Skipping.");
                 } else {
-                    console.log(`✅ [START] Payment verified in sherlar DB for user: ${userId}`);
-                    await userService.markAsPaid(userId);
+                    console.log(`✅ [START] Scoped premium restored for user ${userId} in @${botUsername}`);
+                    await userService.markAsPaid(userId, botUsername);
                     hasPaid = true;
                 }
             } else {
-                console.log(`ℹ️ [START] No payment found in sherlar DB for user: ${userId}`);
+                console.log(`ℹ️ [START] No scoped paid payment found for user ${userId} in @${botUsername}`);
             }
         } catch (error) {
-            console.error("❌ [START] Sherlar DB check error:", error);
+            console.error("❌ [START] Scoped payment reconciliation error:", error);
         }
     }
 
@@ -181,12 +192,13 @@ export async function handleShowJokes(
 ) {
     const userId = ctx.from?.id;
     if (!userId) return;
+    const botUsername = getBotUsernameFromContext(ctx);
 
     const language = await resolveUserLanguage(ctx, userId);
     const messages = getMessages(language);
     const jokeRepo = AppDataSource.getRepository(Joke);
 
-    const hasPaid = await userService.hasPaid(userId);
+    const hasPaid = await userService.hasPaid(userId, botUsername);
 
     const languageCount = await jokeRepo.count({
         where: { language }
@@ -241,7 +253,7 @@ export async function handleShowJokes(
 
     const sessionLanguage = normalizeLanguage(jokes[0].language);
 
-    sessions.set(userId, {
+    sessions.set(buildScopedSessionKey(botUsername, userId), {
         jokes,
         currentIndex: 0,
         language: sessionLanguage
@@ -259,9 +271,10 @@ export async function handleShowJokes(
 export async function handleNext(ctx: Context, index: number) {
     const userId = ctx.from?.id;
     if (!userId) return;
+    const botUsername = getBotUsernameFromContext(ctx);
 
-    const hasPaid = await userService.hasPaid(userId);
-    const session = sessions.get(userId);
+    const hasPaid = await userService.hasPaid(userId, botUsername);
+    const session = sessions.get(buildScopedSessionKey(botUsername, userId));
     const language = session?.language || (await resolveUserLanguage(ctx, userId));
     const messages = getMessages(language);
 
@@ -300,11 +313,12 @@ export async function handleNext(ctx: Context, index: number) {
 export async function handlePayment(ctx: Context) {
     const userId = ctx.from?.id;
     if (!userId) return;
+    const botUsername = getBotUsernameFromContext(ctx);
 
     const language = await resolveUserLanguage(ctx, userId);
     const messages = getMessages(language);
 
-    const user = await userService.findOrCreate(userId, {
+    const user = await userService.findOrCreate(userId, botUsername, {
         username: ctx.from?.username,
         firstName: ctx.from?.first_name,
         lastName: ctx.from?.last_name,
@@ -326,17 +340,19 @@ export async function handlePayment(ctx: Context) {
     const payment = paymentRepo.create({
         transactionParam,
         userId: user.id,
+        botUsername,
         amount,
         status: PaymentStatus.PENDING,
         metadata: {
             telegramId: userId,
-            username: ctx.from?.username
+            username: ctx.from?.username,
+            botUsername
         }
     });
     await paymentRepo.save(payment);
 
-    const botUsername = ctx.me?.username || "soglik_salomatlik_bot";
-    const returnUrl = `https://t.me/${botUsername}`;
+    const returnBotUsername = ctx.me?.username || botUsername;
+    const returnUrl = `https://t.me/${returnBotUsername}`;
 
     const paymentLink = generatePaymentLink({
         amount,
@@ -372,6 +388,7 @@ export async function handlePayment(ctx: Context) {
 export async function handleCheckPayment(ctx: Context, paymentId: number) {
     const userId = ctx.from?.id;
     if (!userId) return;
+    const botUsername = getBotUsernameFromContext(ctx);
 
     const language = await resolveUserLanguage(ctx, userId);
     const messages = getMessages(language);
@@ -390,7 +407,16 @@ export async function handleCheckPayment(ctx: Context, paymentId: number) {
         return;
     }
 
+    if (payment.user?.telegramId !== userId || payment.botUsername !== botUsername) {
+        await answerCallbackSafe(ctx, {
+            text: messages.paymentNotFound,
+            show_alert: true
+        });
+        return;
+    }
+
     if (payment.status === PaymentStatus.PAID) {
+        await userService.markAsPaid(userId, botUsername);
         await answerCallbackSafe(ctx, {
             text: messages.paymentApprovedAlert,
             show_alert: true
@@ -409,11 +435,26 @@ export async function handleCheckPayment(ctx: Context, paymentId: number) {
         });
 
         try {
-            const paymentResult = await sherlarPaymentService.hasValidPayment(userId);
+            const clickResult = await verifyClickPaymentByMTI(payment.transactionParam, payment.createdAt);
+            const sherlarResult =
+                !clickResult.ok && clickResult.errorNote === "missing_click_config"
+                    ? await sherlarPaymentService.hasValidPaymentByTransactionParam(payment.transactionParam)
+                    : { hasPaid: false, paymentDate: undefined };
+
+            const isPaidInClick =
+                clickResult.ok &&
+                (clickResult.paymentStatus === undefined || clickResult.paymentStatus === 1);
+            const paymentResult = isPaidInClick
+                ? { hasPaid: true, paymentDate: payment.createdAt }
+                : sherlarResult;
 
             if (paymentResult.hasPaid) {
-                const userRepo = AppDataSource.getRepository(User);
-                const dbUser = await userRepo.findOne({ where: { telegramId: userId } });
+                const dbUser = await userService.findOrCreate(userId, botUsername, {
+                    username: ctx.from?.username,
+                    firstName: ctx.from?.first_name,
+                    lastName: ctx.from?.last_name,
+                    preferredLanguage: language
+                });
 
                 if (dbUser?.revokedAt && paymentResult.paymentDate && paymentResult.paymentDate < dbUser.revokedAt) {
                     await ctx.editMessageText(messages.paymentRevokedText, {
@@ -425,12 +466,7 @@ export async function handleCheckPayment(ctx: Context, paymentId: number) {
                 payment.status = PaymentStatus.PAID;
                 await paymentRepo.save(payment);
 
-                await userRepo
-                    .createQueryBuilder()
-                    .update(User)
-                    .set({ hasPaid: true, revokedAt: () => "NULL" })
-                    .where("telegramId = :telegramId", { telegramId: userId })
-                    .execute();
+                await userService.markAsPaid(userId, botUsername);
 
                 await ctx.editMessageText(messages.paymentApprovedText(Number(payment.amount)), {
                     parse_mode: "HTML"
@@ -492,11 +528,12 @@ export async function handleLanguageMenu(ctx: Context) {
 export async function handleSetLanguage(ctx: Context, language: BotLanguage) {
     const userId = ctx.from?.id;
     if (!userId) return;
+    const botUsername = getBotUsernameFromContext(ctx);
 
     const normalized = normalizeLanguage(language);
-    await userService.setPreferredLanguage(userId, normalized);
+    await userService.setPreferredLanguage(userId, botUsername, normalized);
 
-    sessions.delete(userId);
+    sessions.delete(buildScopedSessionKey(botUsername, userId));
 
     const messages = getMessages(normalized);
     await answerCallbackSafe(ctx, {

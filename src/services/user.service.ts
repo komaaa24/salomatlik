@@ -3,6 +3,7 @@ import { User } from "../entities/User.js";
 import { AppDataSource } from "../database/data-source.js";
 import { BotLanguage } from "../types/language.js";
 import { normalizeLanguage } from "./i18n.service.js";
+import { LEGACY_BOT_USERNAME, normalizeBotUsername } from "./bot-context.service.js";
 
 export class UserService {
     private userRepo: Repository<User>;
@@ -14,21 +15,21 @@ export class UserService {
     /**
      * Foydalanuvchini topish yoki yaratish
      */
-    async findOrCreate(telegramId: number, userData?: {
+    async findOrCreate(telegramId: number, botUsername: string, userData?: {
         username?: string;
         firstName?: string;
         lastName?: string;
         preferredLanguage?: string;
     }): Promise<User> {
-        let user = await this.userRepo.findOne({
-            where: { telegramId }
-        });
+        const scopedBotUsername = normalizeBotUsername(botUsername) || LEGACY_BOT_USERNAME;
+        let user = await this.findScopedUser(telegramId, scopedBotUsername);
 
         const fallbackLanguage = normalizeLanguage(userData?.preferredLanguage);
 
         if (!user) {
             user = this.userRepo.create({
                 telegramId,
+                botUsername: scopedBotUsername,
                 username: userData?.username,
                 firstName: userData?.firstName,
                 lastName: userData?.lastName,
@@ -62,29 +63,34 @@ export class UserService {
     /**
      * Foydalanuvchi to'lov qildimi?
      */
-    async hasPaid(telegramId: number): Promise<boolean> {
-        const user = await this.userRepo.findOne({
-            where: { telegramId }
-        });
+    async hasPaid(telegramId: number, botUsername: string): Promise<boolean> {
+        const user = await this.findScopedUser(
+            telegramId,
+            normalizeBotUsername(botUsername) || LEGACY_BOT_USERNAME
+        );
         return user?.hasPaid || false;
     }
 
     /**
      * Foydalanuvchini to'lagan deb belgilash
      */
-    async markAsPaid(telegramId: number): Promise<void> {
+    async markAsPaid(telegramId: number, botUsername: string): Promise<void> {
+        const scopedBotUsername = normalizeBotUsername(botUsername) || LEGACY_BOT_USERNAME;
+        await this.findOrCreate(telegramId, scopedBotUsername);
         await this.userRepo.update(
-            { telegramId },
-            { hasPaid: true }
+            { telegramId, botUsername: scopedBotUsername },
+            { hasPaid: true, revokedAt: null }
         );
     }
 
     /**
      * Foydalanuvchi ma'lumotlarini yangilash
      */
-    async update(telegramId: number, data: Partial<User>): Promise<void> {
+    async update(telegramId: number, botUsername: string, data: Partial<User>): Promise<void> {
+        const scopedBotUsername = normalizeBotUsername(botUsername) || LEGACY_BOT_USERNAME;
+        await this.findOrCreate(telegramId, scopedBotUsername);
         await this.userRepo.update(
-            { telegramId },
+            { telegramId, botUsername: scopedBotUsername },
             data
         );
     }
@@ -92,28 +98,57 @@ export class UserService {
     /**
      * Ko'rilgan g'oyalar sonini oshirish
      */
-    async incrementViewedJokes(telegramId: number): Promise<void> {
-        const user = await this.findOrCreate(telegramId);
+    async incrementViewedJokes(telegramId: number, botUsername: string): Promise<void> {
+        const user = await this.findOrCreate(telegramId, botUsername);
         user.viewedJokes += 1;
         await this.userRepo.save(user);
     }
 
-    async getPreferredLanguage(telegramId: number): Promise<BotLanguage> {
-        const user = await this.userRepo.findOne({
-            where: { telegramId }
-        });
+    async getPreferredLanguage(telegramId: number, botUsername: string): Promise<BotLanguage> {
+        const user = await this.findScopedUser(
+            telegramId,
+            normalizeBotUsername(botUsername) || LEGACY_BOT_USERNAME
+        );
 
         return normalizeLanguage(user?.preferredLanguage);
     }
 
-    async setPreferredLanguage(telegramId: number, language: BotLanguage): Promise<void> {
-        await this.findOrCreate(telegramId, {
+    async setPreferredLanguage(telegramId: number, botUsername: string, language: BotLanguage): Promise<void> {
+        const scopedBotUsername = normalizeBotUsername(botUsername) || LEGACY_BOT_USERNAME;
+        await this.findOrCreate(telegramId, scopedBotUsername, {
             preferredLanguage: language
         });
 
         await this.userRepo.update(
-            { telegramId },
+            { telegramId, botUsername: scopedBotUsername },
             { preferredLanguage: normalizeLanguage(language) }
         );
+    }
+
+    private async findScopedUser(telegramId: number, botUsername: string): Promise<User | null> {
+        const normalizedBotUsername = normalizeBotUsername(botUsername) || LEGACY_BOT_USERNAME;
+
+        const scopedUser = await this.userRepo.findOne({
+            where: { telegramId, botUsername: normalizedBotUsername }
+        });
+
+        if (scopedUser) {
+            return scopedUser;
+        }
+
+        if (normalizedBotUsername === LEGACY_BOT_USERNAME) {
+            return null;
+        }
+
+        const legacyUser = await this.userRepo.findOne({
+            where: { telegramId, botUsername: LEGACY_BOT_USERNAME }
+        });
+
+        if (!legacyUser) {
+            return null;
+        }
+
+        legacyUser.botUsername = normalizedBotUsername;
+        return this.userRepo.save(legacyUser);
     }
 }
